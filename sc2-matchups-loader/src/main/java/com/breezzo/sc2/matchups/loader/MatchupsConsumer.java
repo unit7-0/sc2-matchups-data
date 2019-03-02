@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.io.IOException;
  * @since 3/1/19.
  */
 @Component
+@ConditionalOnProperty(value = "application.consumer.batch.enabled", havingValue = "false", matchIfMissing = true)
 public class MatchupsConsumer {
     private static final Logger logger = LoggerFactory.getLogger(MatchupsConsumer.class);
 

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
  * @since 3/1/19.
  */
 @Component
+@ConditionalOnProperty("application.consumer.batch.enabled")
 public class BatchMatchupsConsumer {
     private static final Logger logger = LoggerFactory.getLogger(BatchMatchupsConsumer.class);
 
@@ -52,7 +54,7 @@ public class BatchMatchupsConsumer {
             List<MatchupResult> matchups = new ArrayList<>(batchSize);
             while (true) {
                 if (matchupsBuffer.size() < batchSize) {
-                    TimeUnit.MILLISECONDS.sleep(5000);
+                    TimeUnit.MILLISECONDS.sleep(500);
                 } else {
                     Stopwatch sw = Stopwatch.createStarted();
                     matchupsBuffer.drainTo(matchups, batchSize);
@@ -68,7 +70,7 @@ public class BatchMatchupsConsumer {
         }
     }
 
-//    @RabbitListener(queues = "${application.mq.matchups-queue-name}", concurrency = "8")
+    @RabbitListener(queues = "${application.mq.matchups-queue-name}", concurrency = "8")
     public void onMessage(Message message) {
         try {
             enqueueMessage(message);

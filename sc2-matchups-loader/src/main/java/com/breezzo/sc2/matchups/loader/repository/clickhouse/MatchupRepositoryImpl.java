@@ -3,6 +3,7 @@ package com.breezzo.sc2.matchups.loader.repository.clickhouse;
 import com.breezzo.sc2.matchups.loader.domain.MatchupResult;
 import com.breezzo.sc2.matchups.loader.repository.MatchupRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,7 @@ import java.util.List;
  * @since 3/2/19.
  */
 @Repository
+@Profile("clickhouse")
 public class MatchupRepositoryImpl implements MatchupRepository {
     private static final String INSERT_SQL = "INSERT INTO sc2.matchups_buffer(" +
             " started_at, matchup_id," +

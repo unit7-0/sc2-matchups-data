@@ -1,4 +1,4 @@
-package com.breezzo.sc2.matchups.loader.repository.clickhouse;
+package com.breezzo.sc2.matchups.loader.repository.impl;
 
 import com.breezzo.sc2.matchups.loader.domain.MatchupResult;
 import com.breezzo.sc2.matchups.loader.repository.MatchupRepository;
@@ -18,7 +18,7 @@ import java.util.List;
  */
 @Repository
 @Profile("clickhouse")
-public class MatchupRepositoryImpl implements MatchupRepository {
+public class ClickhouseMatchupRepository implements MatchupRepository {
     private static final String INSERT_SQL = "INSERT INTO sc2.matchups_buffer(" +
             " started_at, matchup_id," +
             " duration_ms, map_name," +

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -37,13 +37,19 @@ public class BatchMatchupsConsumer {
     @Autowired
     private MatchupRepository matchupRepository;
 
-    private final int batchSize = 5000;
-    private BlockingQueue<MatchupResult> matchupsBuffer = new ArrayBlockingQueue<>(30_000);
-    private final int threadsCount = Runtime.getRuntime().availableProcessors();
+    @Value("${application.consumer.batch.size}")
+    private int batchSize;
+
+    @Value("${application.consumer.batch.sleep-threads}")
+    private boolean sleepThreads;
+
+    private BlockingQueue<MatchupResult> matchupsBuffer;
+    private final int threadsCount = Runtime.getRuntime().availableProcessors() / 2;
     private final Executor saveExecutor = Executors.newFixedThreadPool(threadsCount);
 
     @PostConstruct
     public void init() {
+        matchupsBuffer = new ArrayBlockingQueue<>((int) (batchSize * 1.5));
         for (int i = 0; i < threadsCount; i++) {
             saveExecutor.execute(this::drainQueue);
         }
@@ -51,17 +57,36 @@ public class BatchMatchupsConsumer {
 
     private void drainQueue() {
         try {
+            final int sleepDelay = 500;
+            long maxSleepTime = 10_000L;
+            long cycleTime = 0;
             List<MatchupResult> matchups = new ArrayList<>(batchSize);
             while (true) {
-                if (matchupsBuffer.size() < batchSize) {
-                    TimeUnit.MILLISECONDS.sleep(500);
-                } else {
+                if (!sleepThreads) {
                     Stopwatch sw = Stopwatch.createStarted();
+                    MatchupResult result = matchupsBuffer.take();
+                    matchups.add(result);
                     matchupsBuffer.drainTo(matchups, batchSize);
+                    cycleTime += sw.elapsed(TimeUnit.MILLISECONDS);
+                    if (matchups.size() < batchSize && cycleTime < maxSleepTime) {
+                        continue;
+                    }
+                } else {
+                    if (matchupsBuffer.size() < batchSize && cycleTime < maxSleepTime) {
+                        TimeUnit.MILLISECONDS.sleep(sleepDelay);
+                        cycleTime += sleepDelay;
+                    } else {
+                        matchupsBuffer.drainTo(matchups, batchSize);
+                    }
+                }
+                if (!matchups.isEmpty()) {
+                    cycleTime = 0;
+                    Stopwatch sw = Stopwatch.createStarted();
                     matchupRepository.saveResult(matchups);
+                    int saveBatchSize = matchups.size();
                     matchups.clear();
                     sw.stop();
-                    logger.debug("Saving batch duration: {}", sw);
+                    logger.debug("Saving batch duration: {}, size: {}", sw, saveBatchSize);
                 }
             }
         } catch (InterruptedException e) {
